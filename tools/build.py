@@ -1,14 +1,13 @@
 """
-Builds the profile README's images: the marked-up header and one title strip per entry,
-each in a light and a dark version (GitHub picks one with <picture>).
+Builds the profile README's one image: a timeline of the work, in four lanes, in a light
+and a dark version (GitHub picks one with <picture>).
 
 Text is shaped with HarfBuzz and written out as outlines, so it looks the same everywhere
 and nothing has to load. Run from the repo root:  python3 tools/build.py
 Needs: pip install uharfbuzz fonttools
 """
 
-import math
-import random
+from dataclasses import dataclass, field
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -19,12 +18,9 @@ from fontTools.pens.transformPen import TransformPen
 ROOT = Path(__file__).resolve().parent.parent
 FONTS = ROOT / "tools" / "fonts"
 OUT = ROOT / "assets"
-W = 880
 
-THEMES = {
-    "light": {"ink": "#1f2328", "muted": "#59636e", "rule": "#d1d9e0", "pen": "#d9372b"},
-    "dark": {"ink": "#e6edf3", "muted": "#9198a1", "rule": "#3d444d", "pen": "#ff6b5e"},
-}
+# today, as a year fraction: where the "now" line sits. Move it when you rebuild.
+NOW = 2026 + 9.5 / 12
 
 
 class Face:
@@ -34,254 +30,223 @@ class Face:
         self.font = hb.Font(face)
         self.font.set_variations(axes)
 
-    def run(self, text: str, size: float):
+    def _run(self, text: str, size: float):
         buf = hb.Buffer()
         buf.add_str(text)
         buf.guess_segment_properties()
         hb.shape(self.font, buf, {"kern": True, "liga": True})
-        k = size / self.upem
-        return buf.glyph_infos, buf.glyph_positions, k
+        return buf.glyph_infos, buf.glyph_positions, size / self.upem
 
     def width(self, text: str, size: float) -> float:
-        _, pos, k = self.run(text, size)
+        _, pos, k = self._run(text, size)
         return sum(p.x_advance for p in pos) * k
 
-    def path(self, text: str, size: float, x: float, y: float, anchor: str = "start") -> str:
-        """Outline of `text` with its baseline starting at (x, y)."""
-        infos, pos, k = self.run(text, size)
+    def text(self, text: str, size: float, x: float, y: float, attrs: str = "", anchor: str = "start") -> str:
+        """`text` with its baseline starting at (x, y), as uses of glyphs outlined once in DEFS."""
+        infos, pos, k = self._run(text, size)
         if anchor != "start":
-            w = sum(p.x_advance for p in pos) * k
+            w = self.width(text, size)
             x -= w if anchor == "end" else w / 2
-        pen = SVGPathPen(None, ntos=lambda v: f"{v:.1f}".rstrip("0").rstrip("."))
-        pen_x = x
+        uses = []
         for info, p in zip(infos, pos):
-            gx, gy = pen_x + p.x_offset * k, y - p.y_offset * k
-            self.font.draw_glyph_with_pen(info.codepoint, TransformPen(pen, (k, 0, 0, -k, gx, gy)))
-            pen_x += p.x_advance * k
-        return pen.getCommands()
+            key = (id(self), info.codepoint, size)
+            if key not in DEFS:
+                pen = SVGPathPen(None, ntos=lambda v: f"{v:.2f}".rstrip("0").rstrip("."))
+                self.font.draw_glyph_with_pen(info.codepoint, TransformPen(pen, (k, 0, 0, -k, 0, 0)))
+                DEFS[key] = (f"g{len(DEFS)}", pen.getCommands())
+            gid, d = DEFS[key]
+            if d:
+                uses.append(f'<use href="#{gid}" x="{n(x + p.x_offset * k)}" y="{n(y - p.y_offset * k)}"/>')
+            x += p.x_advance * k
+        return f"<g {attrs}>{''.join(uses)}</g>"
 
 
-DISPLAY = Face("Newsreader.ttf", wght=420, opsz=72)
-NAME = Face("Newsreader.ttf", wght=520, opsz=60)
-TEXT_ITALIC = Face("Newsreader-Italic.ttf", wght=400, opsz=16)
-PEN = Face("Caveat.ttf", wght=620)
-XH = 852 / 2000  # Newsreader x-height, in em
+DEFS: dict[tuple, tuple[str, str]] = {}
+
+
+def defs() -> str:
+    return "<defs>" + "".join(f'<path id="{gid}" d="{d}"/>' for gid, d in DEFS.values() if d) + "</defs>"
+
+
+NAME = Face("BricolageGrotesque.ttf", wght=640, wdth=88, opsz=48)
+BOLD = Face("Geist.ttf", wght=600)
+TEXT = Face("Geist.ttf", wght=420)
+NUM = Face("GeistMono.ttf", wght=420)
 
 
 def n(v: float) -> str:
     return f"{v:.1f}".rstrip("0").rstrip(".")
 
 
-# ---------------------------------------------------------------- the red pen
+# ---------------------------------------------------------------- the work
 
 
-def stroke(rng: random.Random, x0: float, y0: float, x1: float, y1: float, bow: float = 2.0) -> str:
-    """One quick, slightly bowed pen line: the kind you make without a ruler."""
-    mx, my = (x0 + x1) / 2 + rng.uniform(-3, 3), (y0 + y1) / 2 + rng.uniform(-bow, bow)
-    return f"M{n(x0)} {n(y0)}Q{n(mx)} {n(my)} {n(x1)} {n(y1)}"
+@dataclass
+class Item:
+    name: str
+    line: str
+    start: float
+    end: float | None = None  # None: a single moment, drawn as a dot
+    live: bool = False  # still going: the bar ends in a pulse at "now"
+    future: bool = False  # not yet: a dashed outline
+    since: str | None = None  # began before the chart does: say when, and fade the bar in
 
 
-def loop(rng: random.Random, cx: float, cy: float, rx: float, ry: float) -> str:
-    """A hand circle: one pass that overshoots its start, so it never quite closes."""
-    pts = []
-    turns = 1.12
-    steps = 40
-    start = -2.6
-    for i in range(steps + 1):
-        t = start + (i / steps) * turns * math.tau
-        wob = 1 + 0.035 * rng.uniform(-1, 1)
-        drift = i / steps * 3
-        pts.append((cx + rx * wob * math.cos(t) + drift, cy + ry * wob * math.sin(t) - drift * 0.4))
-    d = f"M{n(pts[0][0])} {n(pts[0][1])}"
-    for (ax, ay), (bx, by) in zip(pts[1::2], pts[2::2]):
-        d += f"Q{n(ax)} {n(ay)} {n(bx)} {n(by)}"
-    return d
+@dataclass
+class Lane:
+    name: str
+    hue: str
+    items: list[Item] = field(default_factory=list)
 
 
-def check(x: float, y: float, s: float = 1.0) -> str:
-    return f"M{n(x)} {n(y - 9 * s)}Q{n(x + 4 * s)} {n(y - 4 * s)} {n(x + 7 * s)} {n(y)}Q{n(x + 12 * s)} {n(y - 14 * s)} {n(x + 22 * s)} {n(y - 22 * s)}"
+def ym(year: int, month: int) -> float:
+    return year + (month - 1) / 12
 
 
-def svg(w: float, h: float, body: str, style: str = "", title: str = "") -> str:
-    title = escape(title, {'"': "&quot;"})
-    return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{n(w)}" height="{n(h)}" viewBox="0 0 {n(w)} {n(h)}" role="img"'
-        f' aria-label="{title}"><title>{title}</title>'
-        + (f"<style>{style}</style>" if style else "")
-        + body
-        + "</svg>\n"
-    )
+LANES = [
+    Lane("Industry", "blue", [
+        Item("MSCI", "Technology analyst, Azure to GCP", ym(2024, 1), ym(2025, 9)),
+        Item("Nokia", "SWE co-op, LLM agents", ym(2026, 5), NOW, live=True),
+        Item("Full-time", "from 2027", ym(2027, 7), ym(2028, 1), future=True),
+    ]),
+    Lane("Research", "teal", [
+        Item("Drone research", "IEEE grant, 2 papers", ym(2023, 7), ym(2024, 1)),
+        Item("Network Science Institute", "GPT-4.1 on 1M+ papers", ym(2025, 7), ym(2026, 8)),
+    ]),
+    Lane("Hackathons", "coral", [
+        Item("TryBud", "2nd at Harvard", ym(2025, 10)),
+        Item("Bitgig", "Berkeley × DeepMind", ym(2026, 9)),
+    ]),
+    Lane("Education", "amber", [
+        Item("University of Mumbai", "BE Electronics", ym(2023, 1), ym(2024, 6), since="2020"),
+        Item("Northeastern", "MS Computer Science", ym(2025, 9), ym(2027, 6)),
+    ]),
+]
+
+THEMES = {
+    "light": {
+        "bg": "#ffffff", "ink": "#1f2328", "muted": "#59636e", "faint": "#d8dee4", "grid": "#eef1f4",
+        "blue": "#3b63e0", "teal": "#0f9a84", "coral": "#e5533d", "amber": "#c98a06",
+    },
+    "dark": {
+        "bg": "#0d1117", "ink": "#e6edf3", "muted": "#9198a1", "faint": "#3d444d", "grid": "#1c222a",
+        "blue": "#7c9cff", "teal": "#3fd1b5", "coral": "#ff8a75", "amber": "#f2c14e",
+    },
+}
+
+# ---------------------------------------------------------------- layout
+
+W = 880
+X0, X1 = 128, 866  # the plot
+Y_FROM, Y_TO = 2023.0, 2028.0
+TOP = 112  # first lane
+LANE_H = 70
+NAME_PX, LINE_PX = 15.5, 13.5
 
 
-# ---------------------------------------------------------------- the header
+def x_of(t: float) -> float:
+    return X0 + (t - Y_FROM) / (Y_TO - Y_FROM) * (X1 - X0)
 
-HERO_TITLE = "Harshita Jogi. AI writes the code, corrected by hand to: AI writes the first draft. I make it right."
 
-HERO_STYLE = """
-.a{animation:in .6s ease-out .15s both}
-.strike{stroke-dasharray:1;animation:draw .32s cubic-bezier(.6,0,.4,1) .95s both}
-.wipe{transform-box:fill-box;transform-origin:0 50%;animation:wipe .75s cubic-bezier(.4,0,.3,1) 1.3s both}
-.b{animation:in .6s ease-out 2.15s both}
-.under{stroke-dasharray:1;animation:draw .38s cubic-bezier(.6,0,.4,1) 2.75s both}
-@keyframes in{from{opacity:0;transform:translateY(6px)}}
-@keyframes draw{from{stroke-dashoffset:1}}
-@keyframes wipe{from{transform:scaleX(0)}}
-@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+STYLE = """
+.bar{transform-box:fill-box;transform-origin:0 50%;animation:grow .7s cubic-bezier(.3,.7,.2,1) both}
+.lab{animation:fade .5s ease-out both}
+.pulse{transform-box:fill-box;transform-origin:50% 50%;animation:pulse 2.4s ease-out 1.6s infinite}
+@keyframes grow{from{transform:scaleX(0)}}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}}
+@keyframes pulse{0%{transform:scale(1);opacity:.55}70%,100%{transform:scale(3.2);opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}.pulse{display:none}}
 """
 
 
-def hero(c: dict) -> str:
-    rng = random.Random(7)
-    L, R = 0, W
-    H = 268
-    out = []
+def timeline(c: dict) -> str:
+    DEFS.clear()
+    out: list[str] = []
+    halo = f'fill="{c["bg"]}" stroke="{c["bg"]}" stroke-width="5" stroke-linejoin="round"'
 
-    # byline
-    out.append(f'<path fill="{c["ink"]}" d="{NAME.path("Harshita Jogi", 27, L, 40)}"/>')
-    out.append(f'<path fill="{c["muted"]}" d="{TEXT_ITALIC.path("Software engineer, Sunnyvale CA", 16.5, R, 39, "end")}"/>')
-    out.append(f'<path d="M{L} 60.5H{R}" stroke="{c["rule"]}" stroke-width="1"/>')
+    # who
+    out.append(NAME.text("Harshita Jogi", 38, 0, 44, f'fill="{c["ink"]}"'))
+    out.append(TEXT.text("Software engineer · Sunnyvale, CA", 15, W, 42, f'fill="{c["muted"]}"', "end"))
+    out.append(f'<path d="M0 66.5H{W}" stroke="{c["faint"]}" stroke-width="1"/>')
 
-    # line one: the draft, and the pen's correction
-    size, y1, y2 = 40, 170, 228
-    lead = "AI writes the "
-    x_code = L + DISPLAY.width(lead, size)
-    w_code = DISPLAY.width("code", size)
-    out.append(f'<g class="a"><path fill="{c["ink"]}" d="{DISPLAY.path(lead + "code.", size, L, y1)}"/></g>')
-    sy = y1 - XH * size * 0.52
-    out.append(
-        f'<path class="strike" pathLength="1" d="{stroke(rng, x_code - 5, sy + 2, x_code + w_code + 1, sy - 2)}" stroke="{c["pen"]}" stroke-width="3.6" stroke-linecap="round" fill="none"/>'
+    bottom = TOP + LANE_H * len(LANES)
+    # the years, as faint columns
+    for year in range(int(Y_FROM), int(Y_TO) + 1):
+        x = x_of(year)
+        out.append(f'<path d="M{n(x)} {TOP - 18}V{bottom - 6}" stroke="{c["grid"]}" stroke-width="1"/>')
+        out.append(NUM.text(str(year), 12, x, bottom + 14, f'fill="{c["muted"]}"', "middle"))
+
+    # now
+    xn = x_of(NOW)
+    out.append(f'<path d="M{n(xn)} {TOP - 22}V{bottom - 6}" stroke="{c["muted"]}" stroke-width="1" stroke-dasharray="2 4"/>')
+    out.append(NUM.text("now", 12, xn, TOP - 28, f'fill="{c["muted"]}"', "middle"))
+
+    delay = 0.2
+    for i, lane in enumerate(LANES):
+        hue = c[lane.hue]
+        y = TOP + i * LANE_H  # top of the lane's labels
+        bar_y = y + 38
+        out.append(BOLD.text(lane.name, 13, 0, bar_y + 4, f'fill="{hue}"'))
+        right_edge = -1.0
+        for it in lane.items:
+            xs = x_of(it.start)
+            label_x = xs
+            name_w = BOLD.width(it.name, NAME_PX)
+            line_text = it.line if not it.since else f"{it.line}, {it.since} to 2024"
+            line_w = TEXT.width(line_text, LINE_PX)
+            assert label_x > right_edge + 14, f"{lane.name}: {it.name} runs into the item before it"
+            right_edge = label_x + max(name_w, line_w)
+            assert right_edge < W, f"{it.name} runs off the right edge"
+
+            ink = c["muted"] if it.future else c["ink"]
+            out.append(
+                f'<g class="lab" style="animation-delay:{delay + 0.25:.2f}s">'
+                # the halo first, then the letters: it keeps the "now" line off the text
+                + BOLD.text(it.name, NAME_PX, label_x, y + 12, halo)
+                + TEXT.text(line_text, LINE_PX, label_x, y + 29, halo)
+                + BOLD.text(it.name, NAME_PX, label_x, y + 12, f'fill="{ink}"')
+                + TEXT.text(line_text, LINE_PX, label_x, y + 29, f'fill="{c["muted"]}"')
+                + "</g>"
+            )
+            if it.end is None:  # a moment
+                out.append(f'<circle class="lab" style="animation-delay:{delay:.2f}s" cx="{n(xs + 5)}" cy="{bar_y}" r="5" fill="{hue}"/>')
+            elif it.future:
+                xe = x_of(it.end)
+                out.append(
+                    f'<rect class="bar" style="animation-delay:{delay:.2f}s" x="{n(xs)}" y="{bar_y - 4}" width="{n(xe - xs)}" height="8" rx="4"'
+                    f' fill="none" stroke="{hue}" stroke-width="1.5" stroke-dasharray="4 4"/>'
+                )
+            else:
+                xe = x_of(it.end)
+                fill = hue
+                if it.since:  # it began off the left edge: fade it in
+                    gid = f"fade{i}"
+                    out.append(f'<linearGradient id="{gid}" x1="0" x2="1"><stop offset="0" stop-color="{hue}" stop-opacity="0"/><stop offset=".35" stop-color="{hue}"/></linearGradient>')
+                    fill = f"url(#{gid})"
+                out.append(f'<rect class="bar" style="animation-delay:{delay:.2f}s" x="{n(xs)}" y="{bar_y - 4}" width="{n(xe - xs)}" height="8" rx="4" fill="{fill}"/>')
+                if it.live:
+                    out.append(f'<circle class="pulse" cx="{n(xe - 4)}" cy="{bar_y}" r="4" fill="{hue}"/>')
+                    out.append(f'<circle cx="{n(xe - 4)}" cy="{bar_y}" r="4" fill="{hue}" stroke="{c["bg"]}" stroke-width="2"/>')
+            delay += 0.12
+
+    h = bottom + 24
+    title = "Harshita Jogi, software engineer in Sunnyvale, CA. Timeline: " + "; ".join(
+        f"{lane.name}: " + ", ".join(f"{it.name} ({it.line})" for it in lane.items) for lane in LANES
     )
-    pen_size = 39
-    fx = x_code - 14
-    fy = y1 - 44
-    fw = PEN.width("first draft", pen_size)
-    out.append(
-        f'<clipPath id="w"><rect class="wipe" x="{n(fx - 6)}" y="{n(fy - 46)}" width="{n(fw + 16)}" height="64"/></clipPath>'
-        f'<g clip-path="url(#w)"><path transform="rotate(-3.5 {n(fx)} {n(fy)})" fill="{c["pen"]}" d="{PEN.path("first draft", pen_size, fx, fy)}"/></g>'
-    )
-
-    # line two, underlined by the same pen
-    lead2 = "I make it "
-    x_r = L + DISPLAY.width(lead2, size)
-    w_r = DISPLAY.width("right", size)
-    out.append(f'<g class="b"><path fill="{c["ink"]}" d="{DISPLAY.path(lead2 + "right.", size, L, y2)}"/></g>')
-    uy = y2 + 13
-    out.append(
-        f'<path class="under" pathLength="1" d="M{n(x_r - 3)} {n(uy + 1)}Q{n(x_r + w_r * 0.55)} {n(uy - 3)} {n(x_r + w_r + 12)} {n(uy - 4)}" stroke="{c["pen"]}" stroke-width="3.4" stroke-linecap="round" fill="none"/>'
-    )
-    return svg(W, H, "".join(out), HERO_STYLE, HERO_TITLE)
-
-
-# ---------------------------------------------------------------- the entries
-
-
-ENTRIES = [
-    {
-        "id": "nokia",
-        "name": "Nokia",
-        "meta": "Software Engineer Co-op, Test Automation & AI Tooling · Sunnyvale · May 2026 to now",
-        "note": ("check", "human review gates"),
-    },
-    {
-        "id": "bitgig",
-        "name": "Bitgig",
-        "meta": "Berkeley × DeepMind Hackathon · September 2026",
-        "note": ("plain", "experts fix drafts, not footage"),
-    },
-    {
-        "id": "nsi",
-        "name": "Network Science Institute",
-        "meta": "Research Assistant, NIH-funded BioToolKB · Northeastern · 2025 to 2026",
-        "note": ("swap", "60%", "98%"),
-    },
-    {
-        "id": "trybud",
-        "name": "TryBud",
-        "meta": "Harvard Hack-o-Ween · October 2025",
-        "note": ("loop", "2nd place"),
-    },
-    {
-        "id": "msci",
-        "name": "MSCI",
-        "meta": "Technology Analyst · Mumbai · January 2024 to August 2025",
-        "note": ("swap", "Azure", "GCP"),
-    },
-    {
-        "id": "drone",
-        "name": "Drone research",
-        "meta": "Research Lead, IEEE AESS funded, $25,000 grant · 2023",
-        "note": ("plain", "2 IEEE papers, 1 patent filed"),
-    },
-    {
-        "id": "next",
-        "name": "Next",
-        "meta": "A full-time software engineering role, from 2027",
-        "note": ("plain", "your team?"),
-    },
-]
-
-EH = 62  # a rule, the name and its margin note; the one line about it is real text in the README
-
-
-def note(c: dict, kind: tuple, right: float, base: float, rng: random.Random) -> tuple[str, float]:
-    """The red margin note, right-aligned at `right`. Returns the markup and its left edge."""
-    size = 26
-    pen = c["pen"]
-    line = f'stroke="{pen}" stroke-linecap="round" stroke-linejoin="round" fill="none"'
-    if kind[0] == "plain":
-        w = PEN.width(kind[1], size)
-        return f'<path fill="{pen}" d="{PEN.path(kind[1], size, right, base, "end")}"/>', right - w
-    if kind[0] == "check":
-        w = PEN.width(kind[1], size)
-        x = right - w
-        return (
-            f'<path fill="{pen}" d="{PEN.path(kind[1], size, right, base, "end")}"/>'
-            f'<path d="{check(x - 32, base - 2, 0.95)}" {line} stroke-width="3"/>'
-        ), x - 34
-    if kind[0] == "loop":
-        w = PEN.width(kind[1], size)
-        x = right - w - 6
-        return (
-            f'<path fill="{pen}" d="{PEN.path(kind[1], size, right - 6, base, "end")}"/>'
-            f'<path d="{loop(rng, x + w / 2 - 1, base - 9, w / 2 + 12, 19)}" {line} stroke-width="2.6"/>'
-        ), x - 14
-    # swap: the old value struck through, the new one circled
-    old, new = kind[1], kind[2]
-    w_new = PEN.width(new, size)
-    w_old = PEN.width(old, size)
-    x_new = right - w_new - 8
-    x_old = x_new - 26 - w_old
-    sy = base - 9
     return (
-        f'<path fill="{pen}" d="{PEN.path(old, size, x_old, base)}"/>'
-        f'<path d="{stroke(rng, x_old - 4, sy + 3, x_old + w_old + 4, sy - 3, 1.2)}" {line} stroke-width="3"/>'
-        f'<path fill="{pen}" d="{PEN.path(new, size, x_new, base)}"/>'
-        f'<path d="{loop(rng, x_new + w_new / 2, base - 9, w_new / 2 + 11, 19)}" {line} stroke-width="2.6"/>'
-    ), x_old - 6
-
-
-def entry(c: dict, e: dict) -> str:
-    rng = random.Random(e["id"])
-    out = [f'<path d="M0 8.5H{W}" stroke="{c["rule"]}" stroke-width="1"/>']
-    name_w = NAME.width(e["name"], 26)
-    out.append(f'<path fill="{c["ink"]}" d="{NAME.path(e["name"], 26, 0, 47)}"/>')
-    base = 46
-    mark, left = note(c, e["note"], W - 6, base, rng)
-    # tilt the note like a quick margin scribble
-    out.append(f'<g transform="rotate(-2.5 {W - 6} {base})">{mark}</g>')
-    assert left > name_w + 30, f"{e['id']}: the margin note runs into the name"
-    return svg(W, EH, "".join(out), title=f"{e['name']}. {e['meta']}")
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{h}" viewBox="0 0 {W} {h}" role="img" aria-label="{escape(title, {chr(34): "&quot;"})}">'
+        f"<title>{escape(title)}</title><style>{STYLE}</style>" + defs() + "".join(out) + "</svg>\n"
+    )
 
 
 def main():
     OUT.mkdir(exist_ok=True)
+    for old in OUT.glob("*.svg"):
+        old.unlink()
     for theme, c in THEMES.items():
-        (OUT / f"header-{theme}.svg").write_text(hero(c))
-        for e in ENTRIES:
-            (OUT / f"{e['id']}-{theme}.svg").write_text(entry(c, e))
-    sizes = sorted((p.name, p.stat().st_size) for p in OUT.glob("*.svg"))
-    for name, size in sizes:
-        print(f"{name:24} {size / 1024:6.1f} KB")
+        f = OUT / f"timeline-{theme}.svg"
+        f.write_text(timeline(c))
+        print(f"{f.name:22} {f.stat().st_size / 1024:6.1f} KB")
 
 
 if __name__ == "__main__":
