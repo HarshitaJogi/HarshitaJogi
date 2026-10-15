@@ -220,12 +220,12 @@ ENTRIES = [
     },
 ]
 
-EH = 84  # air above the rule, then the name; the role and dates are real text in the README
+EH = 62  # a rule, the name and its margin note; the one line about it is real text in the README
 
 
 def note(c: dict, kind: tuple, right: float, base: float, rng: random.Random) -> tuple[str, float]:
     """The red margin note, right-aligned at `right`. Returns the markup and its left edge."""
-    size = 27
+    size = 26
     pen = c["pen"]
     line = f'stroke="{pen}" stroke-linecap="round" stroke-linejoin="round" fill="none"'
     if kind[0] == "plain":
@@ -262,10 +262,10 @@ def note(c: dict, kind: tuple, right: float, base: float, rng: random.Random) ->
 
 def entry(c: dict, e: dict) -> str:
     rng = random.Random(e["id"])
-    out = [f'<path d="M0 22.5H{W}" stroke="{c["rule"]}" stroke-width="1"/>']
-    name_w = NAME.width(e["name"], 28)
-    out.append(f'<path fill="{c["ink"]}" d="{NAME.path(e["name"], 28, 0, 70)}"/>')
-    base = 68
+    out = [f'<path d="M0 8.5H{W}" stroke="{c["rule"]}" stroke-width="1"/>']
+    name_w = NAME.width(e["name"], 26)
+    out.append(f'<path fill="{c["ink"]}" d="{NAME.path(e["name"], 26, 0, 47)}"/>')
+    base = 46
     mark, left = note(c, e["note"], W - 6, base, rng)
     # tilt the note like a quick margin scribble
     out.append(f'<g transform="rotate(-2.5 {W - 6} {base})">{mark}</g>')
