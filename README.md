@@ -9,9 +9,9 @@
 ```bash
 $ cat about.txt
 > SWE Co-op @ Nokia, Test Automation and AI Tooling
-> MS Computer Science @ Northeastern University, May 2027
-> Previously Research Assistant @ Network Science Institute
-> Previously Technology Analyst @ MSCI
+> MS Computer Science @ Northeastern University, Graduating 2027
+> Previously AI/ML Engineer @ Network Science Institute
+> Previously Software Developer @ MSCI
 > Open to full-time roles from 2027
 ```
 <table>
