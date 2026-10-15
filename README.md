@@ -1,59 +1,74 @@
-## Hi there 👋
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/header-dark.svg">
+  <img src="assets/header-light.svg" width="880" alt="Harshita Jogi. The line “AI writes the code” is corrected in red pen to “AI writes the first draft”, followed by “I make it right.”">
+</picture>
 
-I am **Harshita Jogi**, a passionate Full Stack Developer and Cloud Engineer with a focus on building efficient, scalable applications. I love crafting seamless user experiences and solving real-world problems through code.
+Software engineer co-op at **Nokia**, building test automation and AI tooling. MS in Computer Science at **Northeastern**, graduating May 2027, and open to full-time roles from 2027.
 
+The work I like best sits in one spot: a model does the first pass, and I build what makes it trustworthy. Grounding, evaluation against ground truth, checks for false passes, and a person at the review gate.
 
+*Stack:* Python, Java, C++, TypeScript, JavaScript, SQL · LLM agents and evaluation, NER, PyTorch, TensorFlow, PySpark, BigQuery · Spring Boot, React, Next.js · GCP, AWS, Azure, Docker, Kubernetes
 
-### 🚀 About Me
+<br>
 
-- 🔭 I’m currently working on **React Native apps**, crypto wallets, and real-time exchange platforms.
-- 🌱 I’m currently learning **Web3 integration**, **Socket-based architecture**, and **advanced Firebase features**.
-- 💼 Previously interned at **Oracle** and recognized by leading incubators like **NSRCEL IIM Bangalore**, **IIT Mandi Catalyst**, and the **US Embassy Nexus Program**.
-- ☁️ I deploy and manage cloud-native applications on **AWS**.
-- 👯 I’m looking to collaborate on impactful open-source projects and early-stage startup products.
-- 🧠 Always learning from **KT videos**, **LinkedIn Learning**, and **YouTube tutorials**.
-- 📫 Reach me at: [LinkedIn](https://www.linkedin.com/in/kaustubhgharat/) | [Email](mailto:kaustubhgharat1504@gmail.com)
-- ⚡ Fun fact: I once built and deployed a full-stack 3D model viewer with Unity scenes using just React Native and Firebase!
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/nokia-dark.svg">
+  <img src="assets/nokia-light.svg" width="880" alt="Nokia. Margin note: human review gates.">
+</picture>
 
----
+*Software Engineer Co-op, Test Automation & AI Tooling · Sunnyvale, CA · May 2026 to now*<br>
+Extending a 50K+ line Python test framework to port routing protocol test suites to a new router platform, on live hardware. I built an LLM agent that automates the porting, grounded in internal docs and a failure checklist mined from past debugging. After live evaluation I rebuilt it into staged, dependency-ordered runs with false-pass checks and human review gates.
 
-<!--h1 without bottom border-->
-<div id="user-content-toc">
-  <ul align="center">
-    <summary><h2 style="display: inline-block">Technologies That I Know👨🏻‍💻</h2></summary>
-  </ul>
-</div>
-<!--tech stack icons-->
-<p align="center">
-  <a href="https://skillicons.dev">
-    <img src="https://skillicons.dev/icons?i=git,aws,cpp,css,discord,docker,postgres,prisma,pug,dynamodb,express,figma,firebase,redis,github,html,java,js,linux,md,materialui,nginx,mongodb,mysql,nextjs,nodejs,postman,py,react,redux,tailwind,ts,vscode,kubernetes&perline=14" />
-  </a>
-</p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/bitgig-dark.svg">
+  <img src="assets/bitgig-light.svg" width="880" alt="Bitgig. Margin note: experts fix drafts, not footage.">
+</picture>
 
+*Berkeley × DeepMind Hackathon · September 2026*<br>
+A human-in-the-loop pipeline for lab and medical video, on Cloud Run. Gemini pre-segments the footage into SOP steps, so experts correct drafts instead of raw video, in a review interface I shipped in Next.js, React and TypeScript. [Live demo](https://bitgig-smoky.vercel.app/) · [Code](https://github.com/ZERO34802/BITGIG)
 
-<div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;">
-  <img src="https://github-readme-stats.vercel.app/api/top-langs?username=HarshitaJogi&show_icons=true&locale=en&layout=compact" alt="HarshitaJogi" />
-  
-  <img src="https://github-readme-stats.vercel.app/api?username=HarshitaJogi&show_icons=true&locale=en&count_private=true" alt="HarshitaJogi" />
-  
-  <img src="https://github-readme-streak-stats-delta-umber.vercel.app?user=HarshitaJogi" alt="HarshitaJogi" />
-</div>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/nsi-dark.svg">
+  <img src="assets/nsi-light.svg" width="880" alt="Network Science Institute. Margin note: 60% struck out, 98% circled.">
+</picture>
 
+*Research Assistant, NIH-funded BioToolKB project · Northeastern University · July 2025 to July 2026*<br>
+A Python pipeline that uses GPT-4.1 to annotate 1M+ biomedical research papers, replacing manual tagging. Extraction accuracy went from 60% to 98% through prompt iteration driven by false-positive and false-negative analysis against ground truth. I also fine-tuned SciBERT for named entity recognition, at 97% F1 on research-tool entities. [NIH project](https://reporter.nih.gov/search/kCp_sb-NWku7rIPfBMI6Xg/project-details/11190944)
 
-<!-- Connect with me -->
-<!--h2 without bottom border-->
-<div id="user-content-toc">
-  <ul align="center">
-    <summary><h2 style="display: inline-block">Connect With Me🤝</h2></summary>
-  </ul>
-</div>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/trybud-dark.svg">
+  <img src="assets/trybud-light.svg" width="880" alt="TryBud. Margin note: 2nd place, circled.">
+</picture>
 
-<!--icons and links-->
-<p align="center">
-<a href="https://www.linkedin.com/in/1010nishant/" target="blank"><img align="center" src="https://user-images.githubusercontent.com/88904952/234979284-68c11d7f-1acc-4f0c-ac78-044e1037d7b0.png" alt="linkedin" height="50" width="50" /></a>
-<a href="https://twitter.com/1010nishant" target="blank"><img align="center" src="https://user-images.githubusercontent.com/88904952/234980676-61bfb021-ecc8-48f7-88e6-34c1b06c4a58.png" alt="twitter" height="50" width="50" /></a> 
-<a href="https://www.instagram.com/nishant.jangir.1010/" target="blank"><img align="center" src="https://user-images.githubusercontent.com/88904952/234981169-2dd1e58f-4b7e-468c-8213-034ba62156c3.png" alt="instagram" height="50" width="50" /></a>
-<a href="https://1010nishant.hashnode.dev/" target="blank"><img align="center" src="https://user-images.githubusercontent.com/88904952/234982196-562aea17-5532-4550-8c08-1c7cb994a541.png" alt="hashnode" height="50" width="50" /></a>
-<a href="https://discordapp.com/users/957722095381540874" target="blank"><img align="center" src="https://user-images.githubusercontent.com/88904952/234982627-019fd336-6248-453c-9b05-97c13fd1d207.png" alt="discord" height="50" width="50" /></a>
-  
-</p>
+*Harvard Hack-o-Ween · October 2025*<br>
+A blockchain job-verification platform. Second place and a $3,600 prize at Harvard Hack-o-Ween.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/msci-dark.svg">
+  <img src="assets/msci-light.svg" width="880" alt="MSCI. Margin note: Azure struck out, GCP circled.">
+</picture>
+
+*Technology Analyst · Mumbai, India · January 2024 to August 2025*<br>
+Migrated 15+ APIs from Azure to GCP on Kubernetes and Docker, cutting latency by 23% and infrastructure cost by 40%. Built Spring Boot REST APIs at 82% test coverage, and Databricks ETL in PySpark that moved 5TB from OracleDB to BigQuery.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/drone-dark.svg">
+  <img src="assets/drone-light.svg" width="880" alt="Drone research. Margin note: 2 IEEE papers, 1 patent filed.">
+</picture>
+
+*Research Lead, IEEE AESS funded with a $25,000 grant · July to December 2023*<br>
+A quantized CNN on an NVIDIA Jetson-mounted drone, classifying crop leaves in real time from 15m up, fed by a TensorFlow NDVI pipeline that finds the regions worth looking at. Two IEEE SPACE papers and a patent filing on automated crop health monitoring. [Paper 1](https://ieeexplore.ieee.org/document/10668319) · [Paper 2](https://ieeexplore.ieee.org/document/10667804)
+
+<br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/next-dark.svg">
+  <img src="assets/next-light.svg" width="880" alt="Next. Margin note: your team?">
+</picture>
+
+*A full-time software engineering role, from 2027*<br>
+[Email](mailto:harshitajogi2001@gmail.com) · [LinkedIn](https://www.linkedin.com/in/harshita-jogi-563227215/) · [Resume](https://harshita-jogi-portfolio.vercel.app/Harshita_Jogi_Resume.pdf)
+
+Off the keyboard, I dance Bharatanatyam, with a Kovida degree from Nalanda Dance Research Center, Mumbai.
+
+The playful version of all this is an island you can walk around: **[harshita-jogi-portfolio.vercel.app](https://harshita-jogi-portfolio.vercel.app)**
